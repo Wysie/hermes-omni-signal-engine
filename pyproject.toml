@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hermes-omni-signal-engine"
+version = "0.1.0"
+description = "Hermes Agent plugin for local OMNI signal distillation and rewind retrieval"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [{ name = "Yuan Chin" }]
+keywords = ["hermes", "hermes-agent", "plugin", "omni", "terminal", "token-savings", "local-first"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Build Tools",
+  "Topic :: Terminals",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/Wysie/hermes-omni-signal-engine"
+Repository = "https://github.com/Wysie/hermes-omni-signal-engine"
+Issues = "https://github.com/Wysie/hermes-omni-signal-engine/issues"
+OMNI = "https://github.com/fajarhide/omni"
+
+[project.entry-points."hermes_agent.plugins"]
+omni-signal-engine = "hermes_omni_signal_engine"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-q"
