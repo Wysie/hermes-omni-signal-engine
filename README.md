@@ -240,6 +240,20 @@ Input:
 
 Allowed periods: `default`, `today`, `week`, `month`, `session`.
 
+The tool returns OMNI's original human-readable report plus an `enhanced` object with Hermes-friendly derived metrics:
+
+- `commands_processed`
+- `raw_kb`, `distilled_kb`, `saved_kb`
+- `reduction_percent`
+- `approx_tokens_saved_range` and `approx_tokens_saved_midpoint` using 3.5–4.5 chars/token heuristics
+- `api_equivalent_savings_usd` from OMNI's own estimate
+- `average_latency_ms`
+- `rewind_archived`, `rewind_retrieved`, and `raw_logs_needed_proxy`
+- `codex_subscription_value`, which marks subscription-backed usage as context hygiene rather than direct bill reduction
+- `over_summary_incidents`, currently `null` because quality mistakes are not automatically detectable
+
+These enhanced fields are estimates/proxies. Exact token counts and Codex subscription quota impact depend on the model/provider runtime.
+
 ### `omni_doctor`
 
 Input:

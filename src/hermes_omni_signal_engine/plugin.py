@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict
 from typing import Any
 
@@ -93,12 +94,90 @@ def _tool_rewind(args: dict | None = None, **_kw) -> str:
     return json_dumps(result.as_dict() | {"output": result.stdout.strip()})
 
 
+def _parse_kb(value: str, unit: str) -> float:
+    number = float(value)
+    unit_l = unit.lower()
+    if unit_l == "b":
+        return number / 1000
+    if unit_l == "mb":
+        return number * 1000
+    if unit_l == "gb":
+        return number * 1000 * 1000
+    return number
+
+
+def _enhance_stats_output(output: str) -> dict[str, Any]:
+    """Derive Hermes-friendly stats from OMNI's human-readable stats output.
+
+    OMNI reports byte/KB savings and an API-equivalent dollar estimate. For
+    subscription-backed providers such as Codex/ChatGPT, the more useful signal is
+    approximate context avoided, plus operational proxies like rewind retrievals.
+    """
+    enhanced: dict[str, Any] = {
+        "approx_tokens_saved_range": None,
+        "approx_tokens_saved_midpoint": None,
+        "chars_per_token_assumption": {"low": 4.5, "midpoint": 4.0, "high": 3.5},
+        "codex_subscription_value": "context_hygiene_not_direct_bill_reduction",
+        "over_summary_incidents": None,
+        "over_summary_incidents_note": "Not tracked automatically; record manually when distilled output hides needed detail.",
+    }
+
+    commands = re.search(r"Commands processed:\s*([0-9,]+)", output)
+    if commands:
+        enhanced["commands_processed"] = int(commands.group(1).replace(",", ""))
+
+    data = re.search(
+        r"Data Distilled:\s*([0-9.]+)\s*(B|KB|MB|GB)\s*[→>\-]+\s*([0-9.]+)\s*(B|KB|MB|GB)",
+        output,
+        re.IGNORECASE,
+    )
+    if data:
+        raw_kb = _parse_kb(data.group(1), data.group(2))
+        distilled_kb = _parse_kb(data.group(3), data.group(4))
+        saved_kb = max(raw_kb - distilled_kb, 0.0)
+        saved_bytes = saved_kb * 1000
+        enhanced.update(
+            {
+                "raw_kb": round(raw_kb, 3),
+                "distilled_kb": round(distilled_kb, 3),
+                "saved_kb": round(saved_kb, 3),
+                "approx_tokens_saved_range": {
+                    "low": round(saved_bytes / 4.5),
+                    "high": round(saved_bytes / 3.5),
+                },
+                "approx_tokens_saved_midpoint": round(saved_bytes / 4.0),
+            }
+        )
+
+    ratio = re.search(r"Signal Ratio:\s*([0-9.]+)%", output)
+    if ratio:
+        enhanced["reduction_percent"] = float(ratio.group(1))
+
+    savings = re.search(r"Estimated Savings:\s*\$([0-9.]+)\s*USD", output)
+    if savings:
+        enhanced["api_equivalent_savings_usd"] = float(savings.group(1))
+
+    latency = re.search(r"Average Latency:\s*([0-9.]+)ms", output)
+    if latency:
+        enhanced["average_latency_ms"] = float(latency.group(1))
+
+    rewind = re.search(r"RewindStore:\s*([0-9,]+)\s*archived\s*/\s*([0-9,]+)\s*retrieved", output)
+    if rewind:
+        enhanced["rewind_archived"] = int(rewind.group(1).replace(",", ""))
+        enhanced["rewind_retrieved"] = int(rewind.group(2).replace(",", ""))
+        enhanced["raw_logs_needed_proxy"] = enhanced["rewind_retrieved"]
+        enhanced["raw_logs_needed_proxy_note"] = "Counts OMNI rewind retrievals; exact raw-log need is not otherwise tracked."
+
+    return enhanced
+
+
 def _tool_stats(args: dict | None = None, **_kw) -> str:
     cfg = _cfg()
     args = args or {}
     period = str(args.get("period") or "default")
     result = omni_stats(period, cfg)
-    return json_dumps(result.as_dict() | {"output": result.stdout.strip()})
+    output = result.stdout.strip()
+    return json_dumps(result.as_dict() | {"output": output, "enhanced": _enhance_stats_output(output)})
 
 
 def _tool_doctor(args: dict | None = None, **_kw) -> str:
