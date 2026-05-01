@@ -53,9 +53,34 @@ HERMES_PY="${HERMES_PY:-$HERMES_VENV/bin/python}"
 HERMES_BIN="${HERMES_BIN:-$HERMES_VENV/bin/hermes}"
 
 "$HERMES_PY" -m pip install git+https://github.com/Wysie/hermes-omni-signal-engine.git
-"$HERMES_BIN" plugins enable omni-signal-engine
-"$HERMES_BIN" gateway restart
 ```
+
+Enable the pip entry-point plugin by adding `omni-signal-engine` to `plugins.enabled` in `~/.hermes/config.yaml`:
+
+```yaml
+plugins:
+  enabled:
+    - omni-signal-engine
+```
+
+If you already have other enabled plugins, keep them and add `omni-signal-engine` as another list item:
+
+```yaml
+plugins:
+  enabled:
+    - disk-cleanup
+    - drawthings-grpc
+    - omni-signal-engine
+```
+
+Restart Hermes so the new entry point is discovered:
+
+```bash
+"$HERMES_BIN" gateway restart
+# or start a fresh `hermes chat` / TUI session
+```
+
+Note: on some Hermes versions, `hermes plugins enable omni-signal-engine` only checks directory/bundled plugins and may say the plugin is not installed even though the pip entry point is installed correctly. Manual `plugins.enabled` config is the reliable path for pip-installed plugins.
 
 For local development:
 
@@ -63,8 +88,24 @@ For local development:
 git clone https://github.com/Wysie/hermes-omni-signal-engine.git
 cd hermes-omni-signal-engine
 $HOME/.hermes/hermes-agent/venv/bin/python -m pip install -e .
-$HOME/.hermes/hermes-agent/venv/bin/hermes plugins enable omni-signal-engine
 ```
+
+Then add `omni-signal-engine` to `plugins.enabled` as shown above and restart Hermes.
+
+Verify discovery after restart:
+
+```bash
+$HOME/.hermes/hermes-agent/venv/bin/python - <<'PY'
+from hermes_cli.plugins import PluginManager
+pm = PluginManager()
+pm.discover_and_load()
+for key, plugin in pm._plugins.items():
+    if key == "omni-signal-engine":
+        print(key, "source=", plugin.manifest.source, "enabled=", plugin.enabled, "error=", plugin.error)
+PY
+```
+
+Expected output includes `source= entrypoint`, `enabled= True`, and `error= None`.
 
 ## Configuration
 
