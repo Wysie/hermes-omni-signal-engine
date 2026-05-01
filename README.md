@@ -1,4 +1,4 @@
-# hermes-omni-signal-engine
+# hermes-omni-plugin
 
 Hermes Agent plugin for the [OMNI Semantic Signal Engine](https://github.com/fajarhide/omni): local-first terminal output distillation, rewind retrieval, stats, and diagnostics.
 
@@ -12,7 +12,7 @@ OMNI reduces noisy development output before it reaches an AI agent. This plugin
 - `omni_doctor` — run OMNI diagnostics.
 - `omni_status` — inspect plugin config and resolved OMNI binary.
 - `/omni` slash command — status, stats, doctor, config path.
-- Optional `transform_terminal_output` hook — transparently distill Hermes terminal output before it enters model context.
+- `transform_terminal_output` hook — transparently distill Hermes terminal output before it enters model context. Enabled by default.
 - Optional `omni_cmd` command runner — execute a shell command and distill its output through OMNI. Disabled by default for safety.
 
 ## Safety model
@@ -53,25 +53,25 @@ HERMES_VENV="${HERMES_VENV:-$HERMES_HOME/hermes-agent/venv}"
 HERMES_PY="${HERMES_PY:-$HERMES_VENV/bin/python}"
 HERMES_BIN="${HERMES_BIN:-$HERMES_VENV/bin/hermes}"
 
-"$HERMES_PY" -m pip install git+https://github.com/Wysie/hermes-omni-signal-engine.git
+"$HERMES_PY" -m pip install git+https://github.com/Wysie/hermes-omni-plugin.git
 ```
 
-Enable the pip entry-point plugin by adding `omni-signal-engine` to `plugins.enabled` in `~/.hermes/config.yaml`:
+Enable the pip entry-point plugin by adding `hermes-omni-plugin` to `plugins.enabled` in `~/.hermes/config.yaml`:
 
 ```yaml
 plugins:
   enabled:
-    - omni-signal-engine
+    - hermes-omni-plugin
 ```
 
-If you already have other enabled plugins, keep them and add `omni-signal-engine` as another list item:
+If you already have other enabled plugins, keep them and add `hermes-omni-plugin` as another list item:
 
 ```yaml
 plugins:
   enabled:
     - disk-cleanup
     - drawthings-grpc
-    - omni-signal-engine
+    - hermes-omni-plugin
 ```
 
 Restart Hermes so the new entry point is discovered:
@@ -81,17 +81,19 @@ Restart Hermes so the new entry point is discovered:
 # or start a fresh `hermes chat` / TUI session
 ```
 
-Note: on some Hermes versions, `hermes plugins enable omni-signal-engine` only checks directory/bundled plugins and may say the plugin is not installed even though the pip entry point is installed correctly. Manual `plugins.enabled` config is the reliable path for pip-installed plugins.
+Note: on some Hermes versions, `hermes plugins enable hermes-omni-plugin` only checks directory/bundled plugins and may say the plugin is not installed even though the pip entry point is installed correctly. Manual `plugins.enabled` config is the reliable path for pip-installed plugins.
+
+Early versions used the plugin key `omni-signal-engine`; the package keeps that entry-point alias for backward compatibility, but new installs should use `hermes-omni-plugin`.
 
 For local development:
 
 ```bash
-git clone https://github.com/Wysie/hermes-omni-signal-engine.git
-cd hermes-omni-signal-engine
+git clone https://github.com/Wysie/hermes-omni-plugin.git
+cd hermes-omni-plugin
 $HOME/.hermes/hermes-agent/venv/bin/python -m pip install -e .
 ```
 
-Then add `omni-signal-engine` to `plugins.enabled` as shown above and restart Hermes.
+Then add `hermes-omni-plugin` to `plugins.enabled` as shown above and restart Hermes.
 
 Verify discovery after restart:
 
@@ -101,7 +103,7 @@ from hermes_cli.plugins import PluginManager
 pm = PluginManager()
 pm.discover_and_load()
 for key, plugin in pm._plugins.items():
-    if key == "omni-signal-engine":
+    if key == "hermes-omni-plugin":
         print(key, "source=", plugin.manifest.source, "enabled=", plugin.enabled, "error=", plugin.error)
 PY
 ```
@@ -113,7 +115,7 @@ Expected output includes `source= entrypoint`, `enabled= True`, and `error= None
 Config path:
 
 ```text
-~/.hermes/plugin-data/omni-signal-engine/config.json
+~/.hermes/plugin-data/hermes-omni-plugin/config.json
 ```
 
 Default config:

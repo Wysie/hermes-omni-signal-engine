@@ -3,7 +3,7 @@ requires = ["setuptools>=69", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "hermes-omni-signal-engine"
+name = "hermes-omni-plugin"
 version = "0.1.0"
 description = "Hermes Agent plugin for local OMNI signal distillation and rewind retrieval"
 readme = "README.md"
@@ -25,12 +25,14 @@ classifiers = [
 dependencies = []
 
 [project.urls]
-Homepage = "https://github.com/Wysie/hermes-omni-signal-engine"
-Repository = "https://github.com/Wysie/hermes-omni-signal-engine"
-Issues = "https://github.com/Wysie/hermes-omni-signal-engine/issues"
+Homepage = "https://github.com/Wysie/hermes-omni-plugin"
+Repository = "https://github.com/Wysie/hermes-omni-plugin"
+Issues = "https://github.com/Wysie/hermes-omni-plugin/issues"
 OMNI = "https://github.com/fajarhide/omni"
 
 [project.entry-points."hermes_agent.plugins"]
+hermes-omni-plugin = "hermes_omni_signal_engine"
+# Backward-compatible alias for early installs/configs.
 omni-signal-engine = "hermes_omni_signal_engine"
 
 [tool.setuptools]

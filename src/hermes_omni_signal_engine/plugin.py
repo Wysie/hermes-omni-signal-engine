@@ -32,7 +32,7 @@ def _status_dict() -> dict:
     cfg = _cfg()
     version = omni_version(cfg) if find_omni(cfg) else None
     return {
-        "plugin": "omni-signal-engine",
+        "plugin": "hermes-omni-plugin",
         "config_path": str(config_path()),
         "omni_path_configured": cfg.omni_path,
         "omni_path_resolved": find_omni(cfg),

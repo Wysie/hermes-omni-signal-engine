@@ -6,7 +6,8 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-PLUGIN_NAME = "omni-signal-engine"
+PLUGIN_NAME = "hermes-omni-plugin"
+LEGACY_PLUGIN_NAME = "omni-signal-engine"
 
 DEFAULT_DANGEROUS_ENV_VARS = [
     "BASH_ENV",
@@ -62,6 +63,10 @@ def plugin_data_dir() -> Path:
     return path
 
 
+def legacy_config_path() -> Path:
+    return hermes_home() / "plugin-data" / LEGACY_PLUGIN_NAME / "config.json"
+
+
 def config_path() -> Path:
     return plugin_data_dir() / "config.json"
 
@@ -111,6 +116,15 @@ def normalize(data: dict[str, Any]) -> PluginConfig:
 def load_config() -> PluginConfig:
     path = config_path()
     if not path.exists():
+        legacy = legacy_config_path()
+        if legacy.exists():
+            try:
+                raw = json.loads(legacy.read_text(encoding="utf-8"))
+                cfg = normalize(raw if isinstance(raw, dict) else {})
+                save_config(cfg)
+                return cfg
+            except Exception:
+                pass
         save_config(default_config())
         return default_config()
     try:

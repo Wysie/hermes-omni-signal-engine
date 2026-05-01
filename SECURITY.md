@@ -1,6 +1,6 @@
 # Security Policy
 
-`hermes-omni-signal-engine` is a local bridge to the OMNI CLI. It does not intentionally send terminal output to external services.
+`hermes-omni-plugin` is a local bridge to the OMNI CLI. It does not intentionally send terminal output to external services.
 
 ## Important risks
 

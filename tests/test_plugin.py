@@ -52,6 +52,6 @@ def test_tool_compress_requires_text(monkeypatch):
 
 
 def test_slash_status_returns_json(monkeypatch):
-    monkeypatch.setattr(plugin, "_status_dict", lambda: {"plugin": "omni-signal-engine"})
+    monkeypatch.setattr(plugin, "_status_dict", lambda: {"plugin": "hermes-omni-plugin"})
     data = json.loads(plugin._slash("status"))
-    assert data["plugin"] == "omni-signal-engine"
+    assert data["plugin"] == "hermes-omni-plugin"
