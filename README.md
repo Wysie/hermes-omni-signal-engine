@@ -95,6 +95,38 @@ $HOME/.hermes/hermes-agent/venv/bin/python -m pip install -e .
 
 Then add `hermes-omni-plugin` to `plugins.enabled` as shown above and restart Hermes.
 
+## Update
+
+If you installed from GitHub, update the plugin in the Hermes Python environment and restart Hermes:
+
+```bash
+HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
+HERMES_VENV="${HERMES_VENV:-$HERMES_HOME/hermes-agent/venv}"
+HERMES_PY="${HERMES_PY:-$HERMES_VENV/bin/python}"
+HERMES_BIN="${HERMES_BIN:-$HERMES_VENV/bin/hermes}"
+
+"$HERMES_PY" -m pip install --upgrade --force-reinstall git+https://github.com/Wysie/hermes-omni-plugin.git
+"$HERMES_BIN" gateway restart
+```
+
+If you installed an editable local development checkout:
+
+```bash
+cd /path/to/hermes-omni-plugin
+git pull
+$HOME/.hermes/hermes-agent/venv/bin/python -m pip install -e .
+$HOME/.hermes/hermes-agent/venv/bin/hermes gateway restart
+```
+
+If/when the package is published to PyPI, users can update with:
+
+```bash
+$HOME/.hermes/hermes-agent/venv/bin/python -m pip install --upgrade hermes-omni-plugin
+$HOME/.hermes/hermes-agent/venv/bin/hermes gateway restart
+```
+
+The config file at `~/.hermes/plugin-data/hermes-omni-plugin/config.json` is preserved across package updates. Users only need to re-check `plugins.enabled` if they are migrating from the old `omni-signal-engine` key or reinstalling Hermes from scratch.
+
 Verify discovery after restart:
 
 ```bash
