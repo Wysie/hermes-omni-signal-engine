@@ -82,6 +82,30 @@ Safe default config:
   "omni_path": "omni",
   "timeout_seconds": 120,
   "sanitize_env": true,
+  "dangerous_env_vars": [
+    "BASH_ENV",
+    "ENV",
+    "ZDOTDIR",
+    "BASH_PROFILE",
+    "PROMPT_COMMAND",
+    "IFS",
+    "NODE_OPTIONS",
+    "PYTHONSTARTUP",
+    "PYTHONINSPECT",
+    "PYTHONPATH",
+    "PYTHONHOME",
+    "RUBYOPT",
+    "RUBYLIB",
+    "JAVA_TOOL_OPTIONS",
+    "LD_PRELOAD",
+    "LD_LIBRARY_PATH",
+    "DYLD_INSERT_LIBRARIES",
+    "DYLD_FORCE_FLAT_NAMESPACE",
+    "GIT_ASKPASS",
+    "GIT_EXEC_PATH",
+    "GIT_TEMPLATE_DIR",
+    "SSH_ASKPASS"
+  ],
   "enable_transform_terminal_output": false,
   "enable_omni_cmd": false,
   "max_input_chars": 1000000,
@@ -90,6 +114,26 @@ Safe default config:
   "preserve_raw_on_omni_failure": true
 }
 ```
+
+### Config option reference
+
+| Option | Type | Default | Meaning |
+|---|---|---|---|
+| `enabled` | boolean | `true` | Master switch for OMNI integration. When `false`, the terminal transform hook passes raw output through unchanged and explicit OMNI tools should be treated as disabled by policy. |
+| `omni_path` / `omniPath` | string | `"omni"` | Path or command name for the OMNI CLI binary. Use an absolute path if Hermes' runtime `PATH` cannot find `omni`. `omniPath` is accepted as a camelCase alias for compatibility. |
+| `timeout_seconds` | integer | `120` | Maximum seconds to wait for OMNI CLI operations such as compress, rewind, stats, doctor, or opt-in command execution. Values are clamped between `1` and `3600`. |
+| `sanitize_env` | boolean | `true` | Remove risky environment variables before invoking OMNI or opt-in shell commands. Keep this enabled unless you are debugging a specific environment issue. |
+| `dangerous_env_vars` | string array | see config above | Environment variable names removed when `sanitize_env` is enabled. Defaults cover shell startup hooks, language runtime injection hooks, dynamic linker injection, and credential prompt helpers. |
+| `enable_transform_terminal_output` | boolean | `false` | Enables the native Hermes `transform_terminal_output` hook so terminal output is automatically distilled before entering model context. Off by default because raw logs are safer for debugging. Test explicit `omni_compress` first. |
+| `enable_omni_cmd` | boolean | `false` | Registers/enables the terminal-equivalent `omni_cmd` tool. Off by default because it executes shell commands and can have side effects. |
+| `max_input_chars` | integer | `1000000` | Maximum characters accepted for OMNI distillation input. Longer text is truncated before OMNI is called. Values are clamped between `1000` and `20000000`. |
+| `max_output_chars` | integer | `80000` | Maximum characters returned from distilled or raw fallback output to Hermes. Values are clamped between `1000` and `2000000`. |
+| `include_stderr_in_distillation` | boolean | `true` | For `omni_cmd`, include stderr together with stdout before distillation. Useful for build/test failures where the important signal is often on stderr. |
+| `preserve_raw_on_omni_failure` | boolean | `true` | If OMNI is missing, times out, or errors, return clipped raw output instead of hiding the command result. Set `false` only if you prefer failures to surface as errors rather than raw fallback text. |
+
+Boolean options accept JSON booleans and common string forms such as `"true"`, `"false"`, `"yes"`, `"no"`, `"on"`, and `"off"`.
+
+Restart Hermes after config changes so long-running gateway or TUI processes pick up the new values.
 
 Enable transparent terminal output distillation only after testing:
 
