@@ -3,11 +3,11 @@ import json
 from hermes_omni_signal_engine.config import default_config, load_config, normalize
 
 
-def test_normalize_defaults_are_safe():
+def test_normalize_defaults_enable_visible_distillation_but_not_command_execution():
     cfg = normalize({})
     assert cfg.enabled is True
     assert cfg.enable_omni_cmd is False
-    assert cfg.enable_transform_terminal_output is False
+    assert cfg.enable_transform_terminal_output is True
     assert "LD_PRELOAD" in cfg.dangerous_env_vars
 
 

@@ -41,8 +41,9 @@ class PluginConfig:
     timeout_seconds: int = 120
     sanitize_env: bool = True
     dangerous_env_vars: list[str] = field(default_factory=lambda: list(DEFAULT_DANGEROUS_ENV_VARS))
-    # Safe by default: users call explicit OMNI tools. Transparent rewriting is opt-in.
-    enable_transform_terminal_output: bool = False
+    # Visible by default: users who install and enable the plugin should immediately see
+    # OMNI distill noisy terminal output. The terminal-equivalent command runner remains opt-in.
+    enable_transform_terminal_output: bool = True
     # Command execution is intentionally opt-in because it is terminal-equivalent and may have side effects.
     enable_omni_cmd: bool = False
     max_input_chars: int = 1_000_000
@@ -96,7 +97,7 @@ def normalize(data: dict[str, Any]) -> PluginConfig:
         timeout_seconds=_int(data, "timeout_seconds", 120, minimum=1, maximum=3600),
         sanitize_env=_bool(data, "sanitize_env", True),
         dangerous_env_vars=list(data.get("dangerous_env_vars") or DEFAULT_DANGEROUS_ENV_VARS),
-        enable_transform_terminal_output=_bool(data, "enable_transform_terminal_output", False),
+        enable_transform_terminal_output=_bool(data, "enable_transform_terminal_output", True),
         enable_omni_cmd=_bool(data, "enable_omni_cmd", False),
         max_input_chars=_int(data, "max_input_chars", 1_000_000, minimum=1000, maximum=20_000_000),
         max_output_chars=_int(data, "max_output_chars", 80_000, minimum=1000, maximum=2_000_000),

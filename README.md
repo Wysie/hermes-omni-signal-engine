@@ -17,10 +17,11 @@ OMNI reduces noisy development output before it reaches an AI agent. This plugin
 
 ## Safety model
 
-This plugin is conservative by default:
+This plugin balances visible value with conservative command execution defaults:
 
+- It transparently distills Hermes terminal output by default, so users see the plugin working immediately after install and restart.
+- It marks transformed output with `[OMNI distilled terminal output]`, so agents and users know the output is distilled rather than raw.
 - It does **not** execute shell commands unless `enable_omni_cmd` is explicitly set to `true`.
-- It does **not** transparently rewrite Hermes terminal output unless `enable_transform_terminal_output` is explicitly set to `true`.
 - It sanitizes dangerous environment variables before invoking OMNI or opt-in shell commands.
 - It is local-first: terminal output is sent to the local `omni` binary, not to a cloud service by this plugin.
 - If OMNI is missing or fails during compression, the plugin can preserve raw output instead of hiding it.
@@ -115,7 +116,7 @@ Config path:
 ~/.hermes/plugin-data/omni-signal-engine/config.json
 ```
 
-Safe default config:
+Default config:
 
 ```json
 {
@@ -147,7 +148,7 @@ Safe default config:
     "GIT_TEMPLATE_DIR",
     "SSH_ASKPASS"
   ],
-  "enable_transform_terminal_output": false,
+  "enable_transform_terminal_output": true,
   "enable_omni_cmd": false,
   "max_input_chars": 1000000,
   "max_output_chars": 80000,
@@ -165,7 +166,7 @@ Safe default config:
 | `timeout_seconds` | integer | `120` | Maximum seconds to wait for OMNI CLI operations such as compress, rewind, stats, doctor, or opt-in command execution. Values are clamped between `1` and `3600`. |
 | `sanitize_env` | boolean | `true` | Remove risky environment variables before invoking OMNI or opt-in shell commands. Keep this enabled unless you are debugging a specific environment issue. |
 | `dangerous_env_vars` | string array | see config above | Environment variable names removed when `sanitize_env` is enabled. Defaults cover shell startup hooks, language runtime injection hooks, dynamic linker injection, and credential prompt helpers. |
-| `enable_transform_terminal_output` | boolean | `false` | Enables the native Hermes `transform_terminal_output` hook so terminal output is automatically distilled before entering model context. Off by default because raw logs are safer for debugging. Test explicit `omni_compress` first. |
+| `enable_transform_terminal_output` | boolean | `true` | Enables the native Hermes `transform_terminal_output` hook so terminal output is automatically distilled before entering model context. On by default so the plugin visibly reduces terminal noise after install. Disable when you need exact raw terminal logs for subtle debugging. |
 | `enable_omni_cmd` | boolean | `false` | Registers/enables the terminal-equivalent `omni_cmd` tool. Off by default because it executes shell commands and can have side effects. |
 | `max_input_chars` | integer | `1000000` | Maximum characters accepted for OMNI distillation input. Longer text is truncated before OMNI is called. Values are clamped between `1000` and `20000000`. |
 | `max_output_chars` | integer | `80000` | Maximum characters returned from distilled or raw fallback output to Hermes. Values are clamped between `1000` and `2000000`. |
@@ -176,11 +177,11 @@ Boolean options accept JSON booleans and common string forms such as `"true"`, `
 
 Restart Hermes after config changes so long-running gateway or TUI processes pick up the new values.
 
-Enable transparent terminal output distillation only after testing:
+Disable transparent terminal output distillation when you need exact raw terminal logs:
 
 ```json
 {
-  "enable_transform_terminal_output": true
+  "enable_transform_terminal_output": false
 }
 ```
 
@@ -285,7 +286,7 @@ python -m pytest
 
 ## Design notes
 
-The OpenClaw OMNI plugin exposes `omni_cmd`. Hermes has a richer plugin surface, so this package supports both explicit tools and a native terminal-output transform hook. The transform hook is off by default because lossless access to raw terminal output matters during coding.
+The OpenClaw OMNI plugin exposes `omni_cmd`. Hermes has a richer plugin surface, so this package supports both explicit tools and a native terminal-output transform hook. The transform hook is on by default so a newly installed plugin has visible effect; `omni_cmd` stays off by default because it is terminal-equivalent and can have side effects.
 
 ## License
 
