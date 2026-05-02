@@ -211,13 +211,27 @@ Boolean options accept JSON booleans and common string forms such as `"true"`, `
 
 Restart Hermes after config changes so long-running gateway or TUI processes pick up the new values.
 
-Disable transparent terminal output distillation when you need exact raw terminal logs:
+Disable transparent terminal output distillation when you need exact raw terminal logs, or when another enabled Hermes plugin already transforms terminal output:
 
 ```json
 {
   "enable_transform_terminal_output": false
 }
 ```
+
+### Compatibility with other terminal output transformers
+
+Hermes runs every registered `transform_terminal_output` hook in sequence. If more than one plugin transforms the same terminal output, later hooks receive already-transformed text rather than the original raw stdout/stderr.
+
+Do not enable OMNI's transparent terminal-output transform together with another plugin that also modifies terminal output, such as `hermes-rtk-optimizer`. Choose one transformer for automatic terminal output handling:
+
+```json
+{
+  "enable_transform_terminal_output": false
+}
+```
+
+You can still keep `hermes-omni-plugin` enabled for explicit tools such as `omni_compress`, `omni_rewind`, `omni_stats`, `omni_doctor`, and `omni_status` while another plugin owns terminal-output transformation.
 
 Enable `omni_cmd` only if you explicitly want an OMNI-backed command runner tool:
 
