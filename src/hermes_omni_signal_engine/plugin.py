@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
 from dataclasses import asdict
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from .config import config_path, load_config, save_config, default_config
 from .runner import (
@@ -214,6 +217,8 @@ def _transform_terminal_output(*, command: str, output: str, returncode: int = 0
     if not output:
         return None
     result = distill_text(output, command or "terminal", cfg)
+    if not result.ok:
+        logger.debug("OMNI distillation failed (omni_exit=%s): %s", result.returncode, result.error)
     if not result.stdout or result.stdout == output:
         return None
     header = "[OMNI distilled terminal output"

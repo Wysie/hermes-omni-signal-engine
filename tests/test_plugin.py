@@ -45,6 +45,21 @@ def test_transform_terminal_output_distills_when_enabled(monkeypatch):
     assert out == "[OMNI distilled terminal output]\ndistilled"
 
 
+def test_transform_terminal_output_returns_none_and_logs_on_distill_failure(monkeypatch, caplog):
+    cfg = PluginConfig(enable_transform_terminal_output=True)
+    monkeypatch.setattr(plugin, "load_config", lambda: cfg)
+    # OMNI fails: returncode=1, error="omni internal error", stdout unchanged
+    monkeypatch.setattr(
+        plugin, "distill_text",
+        lambda output, command, cfg: RunResult(False, 1, output, "omni internal error", ["omni"], error="omni internal error"),
+    )
+    with caplog.at_level("DEBUG", logger="hermes_omni_signal_engine.plugin"):
+        out = plugin._transform_terminal_output(command="pytest", output="raw", returncode=0)
+    assert out is None
+    assert "OMNI distillation failed" in caplog.text
+    assert "omni_exit=1" in caplog.text
+
+
 def test_tool_compress_requires_text(monkeypatch):
     result = json.loads(plugin._tool_compress({}))
     assert result["ok"] is False
