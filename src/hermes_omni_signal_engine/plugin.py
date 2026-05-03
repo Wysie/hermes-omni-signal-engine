@@ -5,7 +5,7 @@ import re
 from dataclasses import asdict
 from typing import Any
 
-from .config import config_path, load_config, save_config, default_config
+from .config import backup_config, config_path, load_config, save_config, default_config
 from .runner import (
     distill_text,
     find_omni,
@@ -19,6 +19,7 @@ from .runner import (
 
 _TOOLSET = "omni"
 _REGISTERED = False
+_REWIND_HASH_RE = re.compile(r"^[A-Fa-f0-9]{8,128}$")
 
 
 def _cfg():
@@ -90,6 +91,8 @@ def _tool_rewind(args: dict | None = None, **_kw) -> str:
     hash_value = str(args.get("hash") or args.get("hash_value") or "").strip()
     if not hash_value:
         return json_dumps({"ok": False, "error": "hash is required"})
+    if not _REWIND_HASH_RE.fullmatch(hash_value):
+        return json_dumps({"ok": False, "error": "invalid hash format; expected 8-128 hex characters"})
     result = omni_rewind(hash_value, cfg)
     return json_dumps(result.as_dict() | {"output": result.stdout.strip()})
 
@@ -98,21 +101,16 @@ def _parse_kb(value: str, unit: str) -> float:
     number = float(value)
     unit_l = unit.lower()
     if unit_l == "b":
-        return number / 1000
+        return number / 1024
     if unit_l == "mb":
-        return number * 1000
+        return number * 1024
     if unit_l == "gb":
-        return number * 1000 * 1000
+        return number * 1024 * 1024
     return number
 
 
-def _enhance_stats_output(output: str) -> dict[str, Any]:
-    """Derive Hermes-friendly stats from OMNI's human-readable stats output.
-
-    OMNI reports byte/KB savings and an API-equivalent dollar estimate. For
-    subscription-backed providers such as Codex/ChatGPT, the more useful signal is
-    approximate context avoided, plus operational proxies like rewind retrievals.
-    """
+def _enhance_stats_json(stats: dict[str, Any], period: str = "default") -> dict[str, Any]:
+    """Derive Hermes-friendly stats from OMNI's deterministic JSON stats output."""
     enhanced: dict[str, Any] = {
         "approx_tokens_saved_range": None,
         "approx_tokens_saved_midpoint": None,
@@ -120,6 +118,76 @@ def _enhance_stats_output(output: str) -> dict[str, Any]:
         "codex_subscription_value": "context_hygiene_not_direct_bill_reduction",
         "over_summary_incidents": None,
         "over_summary_incidents_note": "Not tracked automatically; record manually when distilled output hides needed detail.",
+    }
+
+    periods = stats.get("periods") if isinstance(stats, dict) else None
+    if isinstance(periods, list):
+        enhanced["periods"] = periods
+        label_map = {
+            "today": "today",
+            "week": "this_week",
+            "month": "this_month",
+            "session": "session",
+            "default": "all_time",
+        }
+        wanted = label_map.get(period or "default", period or "all_time")
+        selected = next((p for p in periods if isinstance(p, dict) and p.get("label") == wanted), None)
+        if selected is None and wanted == "session":
+            selected = next((p for p in periods if isinstance(p, dict) and p.get("label") == "today"), None)
+            enhanced["selected_period_note"] = "OMNI JSON did not include a session label; using today's period as the closest available summary."
+        if selected is None:
+            selected = next((p for p in periods if isinstance(p, dict) and p.get("label") == "all_time"), None)
+        if selected is None and periods:
+            selected = next((p for p in periods if isinstance(p, dict)), None)
+        if isinstance(selected, dict):
+            enhanced["selected_period"] = selected.get("label")
+            input_tokens = int(selected.get("input_tokens") or 0)
+            output_tokens = int(selected.get("output_tokens") or 0)
+            saved_tokens = max(input_tokens - output_tokens, 0)
+            enhanced.update(
+                {
+                    "commands_processed": int(selected.get("commands") or 0),
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "tokens_saved": saved_tokens,
+                    "approx_tokens_saved_midpoint": saved_tokens,
+                    "approx_tokens_saved_range": {"low": saved_tokens, "high": saved_tokens},
+                    "reduction_percent": float(selected.get("savings_pct") or 0.0),
+                    "api_equivalent_savings_usd": float(selected.get("usd_saved") or 0.0),
+                }
+            )
+
+    commands = stats.get("commands") if isinstance(stats, dict) else None
+    if isinstance(commands, list):
+        enhanced["top_commands"] = commands[:10]
+
+    agents = stats.get("agents") if isinstance(stats, dict) else None
+    if isinstance(agents, list):
+        enhanced["agents"] = agents
+
+    rewind = stats.get("rewind") if isinstance(stats, dict) else None
+    if isinstance(rewind, dict):
+        enhanced["rewind_archived"] = int(rewind.get("archived") or 0)
+        enhanced["rewind_retrieved"] = int(rewind.get("retrieved") or 0)
+        enhanced["raw_logs_needed_proxy"] = enhanced["rewind_retrieved"]
+        enhanced["raw_logs_needed_proxy_note"] = "Counts OMNI rewind retrievals; exact raw-log need is not otherwise tracked."
+
+    if stats.get("avg_latency_ms") is not None:
+        enhanced["average_latency_ms"] = float(stats.get("avg_latency_ms") or 0.0)
+
+    return enhanced
+
+
+def _enhance_stats_output(output: str) -> dict[str, Any]:
+    """Fallback parser for older OMNI versions without `omni stats --json`."""
+    enhanced: dict[str, Any] = {
+        "approx_tokens_saved_range": None,
+        "approx_tokens_saved_midpoint": None,
+        "chars_per_token_assumption": {"low": 4.5, "midpoint": 4.0, "high": 3.5},
+        "codex_subscription_value": "context_hygiene_not_direct_bill_reduction",
+        "over_summary_incidents": None,
+        "over_summary_incidents_note": "Not tracked automatically; record manually when distilled output hides needed detail.",
+        "stats_source": "regex_fallback",
     }
 
     commands = re.search(r"Commands processed:\s*([0-9,]+)", output)
@@ -135,7 +203,7 @@ def _enhance_stats_output(output: str) -> dict[str, Any]:
         raw_kb = _parse_kb(data.group(1), data.group(2))
         distilled_kb = _parse_kb(data.group(3), data.group(4))
         saved_kb = max(raw_kb - distilled_kb, 0.0)
-        saved_bytes = saved_kb * 1000
+        saved_bytes = saved_kb * 1024
         enhanced.update(
             {
                 "raw_kb": round(raw_kb, 3),
@@ -161,7 +229,7 @@ def _enhance_stats_output(output: str) -> dict[str, Any]:
     if latency:
         enhanced["average_latency_ms"] = float(latency.group(1))
 
-    rewind = re.search(r"RewindStore:\s*([0-9,]+)\s*archived\s*/\s*([0-9,]+)\s*retrieved", output)
+    rewind = re.search(r"RewindStore:\s*([0-9,]+)\s*(?:archived\s*/|archived\s*[│|])\s*([0-9,]+)\s*retrieved", output)
     if rewind:
         enhanced["rewind_archived"] = int(rewind.group(1).replace(",", ""))
         enhanced["rewind_retrieved"] = int(rewind.group(2).replace(",", ""))
@@ -170,14 +238,25 @@ def _enhance_stats_output(output: str) -> dict[str, Any]:
 
     return enhanced
 
-
 def _tool_stats(args: dict | None = None, **_kw) -> str:
     cfg = _cfg()
     args = args or {}
     period = str(args.get("period") or "default")
     result = omni_stats(period, cfg)
     output = result.stdout.strip()
-    return json_dumps(result.as_dict() | {"output": output, "enhanced": _enhance_stats_output(output)})
+    json_result = omni_stats(period, cfg, json_output=True)
+    enhanced: dict[str, Any]
+    if json_result.ok:
+        try:
+            enhanced = _enhance_stats_json(json.loads(json_result.stdout or "{}"), period)
+            enhanced["stats_source"] = "omni_stats_json"
+        except Exception as exc:
+            enhanced = _enhance_stats_output(output)
+            enhanced["stats_json_error"] = str(exc)
+    else:
+        enhanced = _enhance_stats_output(output)
+        enhanced["stats_json_error"] = json_result.error or json_result.stderr.strip() or f"omni stats --json exited {json_result.returncode}"
+    return json_dumps(result.as_dict() | {"output": output, "enhanced": enhanced})
 
 
 def _tool_doctor(args: dict | None = None, **_kw) -> str:
@@ -202,7 +281,10 @@ def _slash(raw_args: str) -> str:
     if cmd == "config-path":
         return str(config_path())
     if cmd == "reset-config":
+        backup = backup_config()
         save_config(default_config())
+        if backup:
+            return f"Reset OMNI plugin config at {config_path()} (backup: {backup})"
         return f"Reset OMNI plugin config at {config_path()}"
     return "Usage: /omni [status|stats [today|week|month|session]|doctor [--fix]|config-path|reset-config]"
 

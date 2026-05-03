@@ -144,10 +144,12 @@ def omni_rewind(hash_value: str, cfg: PluginConfig) -> RunResult:
     return run_process([omni, "rewind", hash_value], cfg)
 
 
-def omni_stats(period: str, cfg: PluginConfig) -> RunResult:
+def omni_stats(period: str, cfg: PluginConfig, *, json_output: bool = False) -> RunResult:
     allowed = {"today": "--today", "week": "--week", "month": "--month", "session": "--session", "default": ""}
     flag = allowed.get(period or "default", "")
     argv = [find_omni(cfg) or cfg.omni_path, "stats"]
+    if json_output:
+        argv.append("--json")
     if flag:
         argv.append(flag)
     return run_process(argv, cfg)

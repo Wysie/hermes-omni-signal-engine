@@ -276,6 +276,8 @@ Runs:
 omni rewind a3f8c2d1
 ```
 
+The plugin validates rewind hashes before invoking OMNI: hashes must be 8–128 hexadecimal characters. Invalid hashes are rejected before subprocess execution.
+
 ### `omni_stats`
 
 Input:
@@ -286,12 +288,11 @@ Input:
 
 Allowed periods: `default`, `today`, `week`, `month`, `session`.
 
-The tool returns OMNI's original human-readable report plus an `enhanced` object with Hermes-friendly derived metrics:
+The tool calls `omni stats --json` as the deterministic source of truth for enhanced fields, falling back to human-readable parsing only for older OMNI versions where JSON stats are unavailable. It returns OMNI's original human-readable report plus an `enhanced` object with Hermes-friendly derived metrics:
 
 - `commands_processed`
-- `raw_kb`, `distilled_kb`, `saved_kb`
-- `reduction_percent`
-- `approx_tokens_saved_range` and `approx_tokens_saved_midpoint` using 3.5–4.5 chars/token heuristics
+- `input_tokens`, `output_tokens`, and `tokens_saved` from OMNI JSON stats
+- `approx_tokens_saved_range` and `approx_tokens_saved_midpoint` (exactly `tokens_saved` when JSON stats are available; 3.5–4.5 chars/token fallback for older text stats)
 - `api_equivalent_savings_usd` from OMNI's own estimate
 - `average_latency_ms`
 - `rewind_archived`, `rewind_retrieved`, and `raw_logs_needed_proxy`
@@ -338,6 +339,8 @@ Inside Hermes:
 /omni config-path
 /omni reset-config
 ```
+
+The reset command creates a timestamped `config.json.<UTC>.bak` backup beside the config file before overwriting it.
 
 ## Development
 

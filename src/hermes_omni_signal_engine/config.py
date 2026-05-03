@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -132,6 +134,17 @@ def load_config() -> PluginConfig:
     except Exception:
         return default_config()
     return normalize(raw if isinstance(raw, dict) else {})
+
+
+def backup_config() -> Path | None:
+    """Create a timestamped config backup if the config file exists."""
+    path = config_path()
+    if not path.exists():
+        return None
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    backup = path.with_name(f"{path.name}.{stamp}.bak")
+    shutil.copy2(path, backup)
+    return backup
 
 
 def save_config(cfg: PluginConfig) -> None:
